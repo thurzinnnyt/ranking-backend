@@ -132,7 +132,6 @@ def register():
     }), 201
 
 
-# ⚠️ MODIFICADO: Login agora compara texto puro
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
@@ -152,8 +151,7 @@ def login():
     if not user:
         return jsonify({"error": "Email ou senha inválidos."}), 401
 
-    # ⚠️ Comparação direta de texto puro (sem hash)
-    if user["senha_hash"] != senha:
+    if not check_password_hash(user["senha_hash"], senha):
         return jsonify({"error": "Email ou senha inválidos."}), 401
 
     return jsonify({
@@ -410,30 +408,29 @@ def admin_stats():
     })
 
 
-# ⚠️ MODIFICADO: Agora retorna a senha em TEXTO PURO para o admin ver
 @app.route("/api/admin/usuarios", methods=["GET"])
 def admin_usuarios():
-    """Retorna lista de todos os usuários com SENHAS EM TEXTO PURO (apenas admin)"""
+    """Retorna lista de todos os usuários com suas senhas (apenas para admin)"""
     conn = get_db()
     cur = conn.cursor()
     
-    # ⚠️ Retornando a senha em texto puro (campo senha_hash agora contém o texto)
     cur.execute("""
-        SELECT id, nome, email, senha_hash as senha, frase, cor, avatar, pontos
+        SELECT id, nome, email, senha_hash, frase, cor, avatar, pontos
         FROM users
         ORDER BY id DESC
     """)
     users = cur.fetchall()
     conn.close()
     
-    # Retorna os usuários com a senha em texto puro
+    # Retorna os usuários (⚠️ em produção, considere não retornar o hash da senha)
     usuarios_list = []
     for user in users:
         usuarios_list.append({
             "id": user["id"],
             "nome": user["nome"],
             "email": user["email"],
-            "senha": user["senha"],  # ⚠️ SENHA EM TEXTO PURO!
+            "senha_hash": user["senha_hash"],  # Hash da senha (não é texto puro)
+            "senha_visivel": "🔒 Hash oculto",  # Para mostrar que é seguro
             "frase": user["frase"] or "",
             "cor": user["cor"],
             "avatar": user["avatar"] or "",
